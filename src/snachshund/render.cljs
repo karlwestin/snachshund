@@ -20,4 +20,8 @@
 
 (defn render! [element game-state]
   (clear! element)
-  (draw! element (:snake game-state) "snake"))
+  (print "score" (:score game-state))
+  (draw! element (:fruit game-state) "fruit")
+  (draw! element (:snake game-state) "snake")
+  (if (:done game-state)
+    (print "!!!GAME OVER!!!")))
