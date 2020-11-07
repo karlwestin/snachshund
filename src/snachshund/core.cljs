@@ -3,7 +3,7 @@
 ;; clj --main cljs.main --compile snachshund.core --repl
 ;; (require '[snachshund.core :as snack] :reload)
 (def board-size 20)
-(def base-speed 1000)
+(def base-speed 500)
 
 (def movements
   {:left {:x -1 :y 0}
@@ -36,18 +36,30 @@
     new-snake
     (into [(first old-snake)] new-snake)))
 
+(defn collide-item [hitter target]
+  (and (= (:x hitter) (:x target))
+       (= (:y hitter) (:y target))))
+
 (defn collide [hitter targets]
-  (first (filter #(= hitter %) targets)))
+  (first
+    (filter #(collide-item hitter %) targets)))
 
 (defn create-fruit [excludes]
-  (let [fruit {:x (rand-int board-size) :y (rand-int board-size)}
+  (let [fruit {:x (rand-int board-size) :y (rand-int board-size) :age 0}
         add? (< 18 (rand-int 20))
         available? (not (collide fruit excludes))]
     (if (and add? available?)
       fruit)))
 
-(defn manage-fruit [eaten old-fruit excludes]
-  (let [filtered-fruit (filterv #(not (= eaten %)) old-fruit)
+(defn remove-fruit [fruit eaten]
+  (filterv #(and (not (= eaten %)) (< (:age %) 10)) fruit))
+
+(defn age-fruit [fruit]
+  (mapv #(assoc % :age (inc (:age %))) fruit))
+
+(defn manage-fruit [eaten old-fruit excludes step?]
+  (let [filtered-fruit (remove-fruit old-fruit eaten)
+        filtered-fruit (if step? (age-fruit filtered-fruit) filtered-fruit)
         add-fruit (create-fruit (concat excludes filtered-fruit))]
     (if add-fruit
       (conj filtered-fruit add-fruit)
@@ -64,9 +76,9 @@
 (def new-game
   {:snake [{:x 9 :y 11} {:x 9 :y 10} {:x 9 :y 9}]
    :direction :up
-   :interval 1000
+   :interval base-speed
    :score 0
-   :fruit [{:x 3 :y 4}]
+   :fruit [{:x 3 :y 4 :age 0}]
    :board-size board-size})
 
 (defn calculate-next-state [state step? new-direction]
@@ -75,14 +87,17 @@
         direction (or new-direction (:direction state))
         new-snake (move-snake old-snake (direction movements))
         eaten (collide (last new-snake) old-fruit)
+        ;; this was a bit of a catch 22: can't know if we're eating
+        ;; until the snake has moved, can't know if i need the keep
+        ;; the first square until i know if we've eaten
         new-snake (grow-snake new-snake old-snake eaten)
-        new-fruit (manage-fruit eaten old-fruit new-snake)
+        new-fruit (manage-fruit eaten old-fruit new-snake step?)
         score (get-score eaten (:score state))
         done? (or
                 (:done state)
                 (not (nil? (collide
-                             (first new-snake)
-                             (rest new-snake)))))]
+                             (last new-snake)
+                             (butlast new-snake)))))]
     (merge
       state
       {:snake (if done? old-snake new-snake)
@@ -108,7 +123,6 @@
           new-state (calculate-next-state prev-state step direction)
           interval (:interval new-state)
           done? (:done new-state)
-          _ (println "DONE" done?)
           _ (render/clear! element)
           _ (render/render! element new-state)
           _ (swap! state assoc :game new-state)]
@@ -125,7 +139,7 @@
   (let [new-direction ((keyword (str event.keyCode)) key-directions)
         prev-state (:game @state)]
     (if (and
-          (not (:done :prev-state))
+          (not (:done prev-state))
           new-direction
           (legit-move? (:direction prev-state) new-direction))
       (game-loop new-direction))))

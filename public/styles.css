@@ -11,3 +11,19 @@
 .fruit {
     background-color: red;
 }
+
+.fruit-age-0,
+.fruit-age-1 {
+    background-color: green;
+}
+
+.fruit-age-9,
+.fruit-age-10 {
+    background-color: brown;
+}
+
+.score {
+  width: inherit;
+  height: inherit;
+  background-color: transparent;
+}
