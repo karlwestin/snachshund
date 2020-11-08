@@ -10,24 +10,43 @@
     (set! (.. el -style -left) (str (* x size-factor) "px"))
     el))
 
-(defn draw-score! [element score]
-  (let [el (create-div {:x 19 :y 18} "score")]
-    (set! (. el -innerText) (str "Score: " score))
-    (. element appendChild el)))
+(defn draw-content!
+  ([element content className]
+    (draw-content! element content className "div"))
+  ([element content className tag]
+    (let [rendered-element (. js/document createElement tag)
+          nodes (if (string? content)
+                 [(. js/document createTextNode content)]
+                 content)]
+      (doseq [node nodes]
+        (. rendered-element appendChild node))
+      (set! (. rendered-element -className) className)
+      (if (nil? element)
+        rendered-element
+        (. element appendChild rendered-element)))))
 
-(defn draw! [element coords className]
+(defn draw-seq! [element coords className]
   (doseq [item coords]
     (let [el (create-div item className)]
       (. element appendChild el))))
 
 (defn clear! [element]
-  (doseq [child (. element -children)]
-    (. child remove)))
+  ;; this was a nice example of how the DOM and JS leaks into CLJS:
+  ;; element.children and element.childNodes are live nodelists
+  ;; so removing elements while iterating over the nodelist
+  ;; will "modify the sequence i'm iterating over", and
+  ;; caused doseq to skip elements
+  ;; converting the live nodelist to an array made it work
+  (let [children (. js/Array from (. element -children))]
+    (doseq [child children]
+      (. child remove))))
 
 (defn render! [element game-state]
   (clear! element)
-  (draw-score! element (:score game-state))
-  (draw! element (:fruit game-state) #(str "fruit fruit-age-" (:age %)))
-  (draw! element (:snake game-state) "snake")
-  (if (:done game-state)
-    (print "!!!GAME OVER!!!")))
+  (draw-content! element (str "Score: " (:score game-state)) "score")
+  (draw-seq! element (:fruit game-state) #(str "fruit fruit-age-" (:age %)))
+  (draw-seq! element (:snake game-state) "snake")
+  (when (:done game-state)
+    (let [button (draw-content! nil "TRY AGAIN" "js-restart restart" "button")
+          sign (draw-content! nil "!!!!GAME OVER!!!!" "game-over")]
+      (draw-content! element [sign button] "game-over-sign"))))

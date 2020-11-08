@@ -1,7 +1,6 @@
 (ns snachshund.core
   (:require [snachshund.render :as render]))
-;; clj --main cljs.main --compile snachshund.core --repl
-;; (require '[snachshund.core :as snack] :reload)
+
 (def board-size 20)
 (def base-speed 500)
 
@@ -36,6 +35,8 @@
     new-snake
     (into [(first old-snake)] new-snake)))
 
+;; This collision check assumes we're only interested in colliding
+;; with one element. Despite this limitation it's been quite useful.
 (defn collide-item [hitter target]
   (and (= (:x hitter) (:x target))
        (= (:y hitter) (:y target))))
@@ -59,11 +60,11 @@
 
 (defn manage-fruit [eaten old-fruit excludes step?]
   (let [filtered-fruit (remove-fruit old-fruit eaten)
-        filtered-fruit (if step? (age-fruit filtered-fruit) filtered-fruit)
-        add-fruit (create-fruit (concat excludes filtered-fruit))]
+        aged-fruit (if step? (age-fruit filtered-fruit) filtered-fruit)
+        add-fruit (create-fruit (concat excludes aged-fruit))]
     (if add-fruit
-      (conj filtered-fruit add-fruit)
-      filtered-fruit)))
+      (conj aged-fruit add-fruit)
+      aged-fruit)))
 
 (defn get-score [point old-score]
   (if point
@@ -73,14 +74,26 @@
 (defn get-interval [score]
   (max (- base-speed (* (int (/ score 10)) 200)) 100))
 
+;; The snake and fruit are modeled as vectors
+;; the head of the snake is at the end of the vector
+;; using the same format for those objects made it quite neat
+;; to create a collision function that checks whether any fruits have
+;; been eaten or whether the snake is colliding with itself
+;; adding a concept like Walls would be a matter of adding
+;; another similar vector with x/y coords and the same collision check
+;; could be re-used for that.
 (def new-game
   {:snake [{:x 9 :y 11} {:x 9 :y 10} {:x 9 :y 9}]
    :direction :up
    :interval base-speed
    :score 0
+   :done false
    :fruit [{:x 3 :y 4 :age 0}]
    :board-size board-size})
 
+;; This is taking the entire state and creating the next state
+;; if new-direction is there, we have user movement, from a key press
+;; step? means that the game world moves forwards (for example fruit gets older)
 (defn calculate-next-state [state step? new-direction]
   (let [old-snake (:snake state)
         old-fruit (:fruit state)
@@ -107,11 +120,14 @@
        :fruit (if done? old-fruit new-fruit)
        :done done?})))
 
+;; here's the entire game state in one go
 (def state
   (atom
     {:game new-game
      :element (. js/document getElementById "game")}))
 
+;; this is the main game loop
+;; calculates new state and renders it
 (defn game-loop
   ([]
     (game-loop nil))
@@ -123,12 +139,13 @@
           new-state (calculate-next-state prev-state step direction)
           interval (:interval new-state)
           done? (:done new-state)
-          _ (render/clear! element)
           _ (render/render! element new-state)
           _ (swap! state assoc :game new-state)]
       (if-not (or done? (not step))
         (js/setTimeout game-loop interval)))))
 
+;; Here are user controls,
+;; key presses and "try again" button:
 (def key-directions
   {:37 :left
    :38 :up
@@ -136,7 +153,7 @@
    :40 :down})
 
 (defn keypress [event]
-  (let [new-direction ((keyword (str event.keyCode)) key-directions)
+  (let [new-direction ((keyword (str (. event -keyCode))) key-directions)
         prev-state (:game @state)]
     (if (and
           (not (:done prev-state))
@@ -144,7 +161,17 @@
           (legit-move? (:direction prev-state) new-direction))
       (game-loop new-direction))))
 
+;; Using some good old jQuery Event Delegation style here
+;; that way i only need to attach the button listener once
+;; and can re-use it whenever the button is available again
+(defn restart [event]
+  (let [restart? (.. event -target -classList (contains "js-restart"))]
+    (when restart?
+      (swap! state assoc :game new-game)
+      (game-loop))))
+
 (defn main! []
   (println "running the app")
   (. js/document addEventListener "keydown" keypress)
+  (. js/document addEventListener "click" restart)
   (game-loop))

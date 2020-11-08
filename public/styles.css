@@ -1,6 +1,21 @@
+*, html {
+    /* Monospace stack from css-tricks*/
+    font-family: Consolas, "Andale Mono WT", "Andale Mono", "Lucida Console", "Lucida Sans Typewriter", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", "Liberation Mono", "Nimbus Mono L", Monaco, "Courier New", Courier, monospace;
+}
+
+body {
+    text-align: center;
+}
+
 #game {
     position: relative;
+    left: 50%;
+    margin-left: -200px;
+    width: 400px;
+    height: 400px;
+    background-color: #eee;
 }
+
 .game-element {
     position: absolute;
     background-color: #000;
@@ -17,13 +32,37 @@
     background-color: green;
 }
 
+/* show the user when fruit is about to expire
+ * by making it brown */
 .fruit-age-9,
 .fruit-age-10 {
     background-color: brown;
 }
 
 .score {
-  width: inherit;
-  height: inherit;
-  background-color: transparent;
+  position: absolute;
+  bottom: 0;
+  right: 0;
+}
+
+.game-over-sign {
+    position: absolute;
+    top: 170px;
+    left: 50%;
+    margin-left: -90px;
+    color: #fff;
+    width: 180px;
+    background-color: #333;
+    padding: 10px 10px 12px 10px;
+}
+
+.game-over {
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.restart {
+    border: none;
+    background-color: #eee;
 }
