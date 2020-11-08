@@ -1,4 +1,4 @@
 .cpcache
 .shadow-cljs
 out
-public/js
+docs/

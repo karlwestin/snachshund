@@ -26,5 +26,5 @@ shadow-cljs watch app
 shadow-cljs compile app
 
 # serve with Python 3 SimpleHTTPServer
-cd public && python -m http.server
+cd docs && python -m http.server
 ```
