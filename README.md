@@ -1,3 +1,7 @@
+---
+permalink: /index.html
+---
+
 # Snachshund
 
 > Snake in clojurescript. A dachshund eating snacks.
